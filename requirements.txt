@@ -1,0 +1,14 @@
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+langgraph>=0.0.20
+langchain-core>=0.1.0
+langchain-google-genai>=0.0.9
+sqlglot>=20.0.0
+chromadb>=0.4.20
+sentence-transformers>=2.2.2
+langfuse>=2.0.0
+streamlit>=1.30.0
+sqlalchemy>=2.0.0
+python-dotenv>=1.0.0
