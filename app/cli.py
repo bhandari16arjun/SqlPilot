@@ -1,4 +1,5 @@
 import os
+import uuid
 from dotenv import load_dotenv
 
 # Load environment variables FIRST, before importing anything else
@@ -8,7 +9,7 @@ from app.agent.graph import create_graph
 
 def main():
     print("===========================================")
-    print("   Welcome to SQLPilot (Phase 1: Core)     ")
+    print("   Welcome to SQLPilot (Phase 3: Clarify)  ")
     print("===========================================")
     print("Type 'exit' or 'quit' to close the app.\n")
     
@@ -22,21 +23,54 @@ def main():
         initial_state = {
             "user_question": question,
             "schema_context": "",
+            "is_ambiguous": False,
+            "clarification_question": "",
+            "conversation_history": [],
             "generated_sql": None,
             "execution_results": None,
             "final_answer": None
         }
         
+        # Unique thread ID for this conversation (required for MemorySaver to work)
+        config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        
         try:
-            # Run the LangGraph state machine
-            result_state = graph.invoke(initial_state)
+            # We use stream so we can catch the interrupt
+            for event in graph.stream(initial_state, config):
+                pass
+                
+            # Check the current state of the graph
+            state = graph.get_state(config)
             
+            # Loop as long as the graph is paused at the 'clarify' node
+            while state.next and state.next[0] == "clarify":
+                current_values = state.values
+                clarification_q = current_values.get("clarification_question")
+                
+                print(f"\n[AI Needs Clarification] 🤔 {clarification_q}")
+                user_answer = input("Your answer: ")
+                
+                # Append to history
+                history = current_values.get("conversation_history", [])
+                history.append(f"AI: {clarification_q}\nUser: {user_answer}")
+                
+                # Update the state directly
+                graph.update_state(config, {"conversation_history": history, "is_ambiguous": False})
+                
+                # Resume execution with None
+                for event in graph.stream(None, config):
+                    pass
+                    
+                state = graph.get_state(config)
+
+            # Execution is finished!
+            final_state = state.values
             print("\n" + "="*50)
-            print(f"🚀 GENERATED SQL:\n{result_state['generated_sql']}")
+            print(f"🚀 GENERATED SQL:\n{final_state.get('generated_sql')}")
             print("-" * 50)
-            print(f"💾 RAW DATABASE RESULTS:\n{result_state['execution_results']}")
+            print(f"💾 RAW DATABASE RESULTS:\n{final_state.get('execution_results')}")
             print("-" * 50)
-            print(f"🤖 AI EXPLANATION:\n{result_state['final_answer']}")
+            print(f"🤖 AI EXPLANATION:\n{final_state.get('final_answer')}")
             print("="*50 + "\n")
             
         except Exception as e:

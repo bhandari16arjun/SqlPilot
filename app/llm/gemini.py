@@ -6,7 +6,6 @@ from .base import LLMProvider
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
-        # We assume GEMINI_API_KEY is loaded in the environment
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-3.5-flash",
             temperature=0,
@@ -19,7 +18,7 @@ Your goal is to generate a PostgreSQL/SQLite compatible SQL query based on the u
 You must return your response as a valid JSON object with two keys: "sql" and "assumptions".
 Do not return any markdown wrapping the JSON, just the raw JSON string.
 
-Here is the database schema:
+Here is the database schema and context:
 {schema}
 """
         messages = [
@@ -30,14 +29,12 @@ Here is the database schema:
         response = self.llm.invoke(messages)
         content = response.content
         
-        # Handle list responses from newer LangChain versions
         if isinstance(content, list):
             text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
             content = "".join(text_blocks)
             
         content = str(content).strip()
         
-        # Clean up potential markdown formatting from the LLM
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
             
@@ -45,7 +42,6 @@ Here is the database schema:
             data = json.loads(content)
             return data.get("sql", "")
         except json.JSONDecodeError:
-            # Fallback if the model fails to return strictly JSON
             return content
 
     def explain_results(self, question: str, sql: str, results: list) -> str:
@@ -68,3 +64,37 @@ Please provide a short answer to the original question based on these results.
             text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
             return "".join(text_blocks)
         return str(content)
+
+    def detect_ambiguity(self, question: str, schema: str, history: list) -> dict:
+        system_prompt = f"""You are a strict data analyst. Check if the user's question is ambiguous given the schema.
+An ambiguous question is one where you aren't 100% sure which table/column to use, or what a term means.
+You must return a JSON object with:
+"is_ambiguous": boolean
+"ambiguity_type": string (e.g. "Missing Time Bound", "Schema Ambiguity", "Clear")
+"clarification_question": string (A multiple choice question for the user to clarify, or empty if clear)
+
+Schema & Rules:
+{schema}
+
+History of clarifications:
+{history}
+"""
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=question)
+        ]
+        
+        response = self.llm.invoke(messages)
+        content = response.content
+        if isinstance(content, list):
+            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
+            content = "".join(text_blocks)
+            
+        content = str(content).strip()
+        if content.startswith("```json"):
+            content = content.replace("```json", "").replace("```", "").strip()
+            
+        try:
+            return json.loads(content)
+        except:
+            return {"is_ambiguous": False, "clarification_question": ""}
