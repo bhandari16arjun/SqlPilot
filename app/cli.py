@@ -1,9 +1,10 @@
 import os
 from dotenv import load_dotenv
-from app.agent.graph import create_graph
 
-# Load environment variables (like GEMINI_API_KEY)
+# Load environment variables FIRST, before importing anything else
 load_dotenv()
+
+from app.agent.graph import create_graph
 
 def main():
     print("===========================================")

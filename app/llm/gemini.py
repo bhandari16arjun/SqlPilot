@@ -8,7 +8,7 @@ class GeminiProvider(LLMProvider):
     def __init__(self):
         # We assume GEMINI_API_KEY is loaded in the environment
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",
+            model="gemini-3.5-flash",
             temperature=0,
             api_key=os.getenv("GEMINI_API_KEY")
         )
@@ -28,7 +28,14 @@ Here is the database schema:
         ]
         
         response = self.llm.invoke(messages)
-        content = response.content.strip()
+        content = response.content
+        
+        # Handle list responses from newer LangChain versions
+        if isinstance(content, list):
+            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
+            content = "".join(text_blocks)
+            
+        content = str(content).strip()
         
         # Clean up potential markdown formatting from the LLM
         if content.startswith("```json"):
@@ -56,4 +63,8 @@ Please provide a short answer to the original question based on these results.
         ]
         
         response = self.llm.invoke(messages)
-        return response.content
+        content = response.content
+        if isinstance(content, list):
+            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
+            return "".join(text_blocks)
+        return str(content)
