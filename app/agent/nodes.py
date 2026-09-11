@@ -19,7 +19,7 @@ def generate_sql_node(state: AgentState) -> AgentState:
     
     return {
         "user_question": question,
-        "schema_context": schema,
+        "schema_context": schema_context,
         "generated_sql": sql,
         "execution_results": None,
         "final_answer": None
