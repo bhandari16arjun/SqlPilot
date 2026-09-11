@@ -1,18 +1,21 @@
 from .state import AgentState
 from app.llm.gemini import GeminiProvider
 from app.db.sqlite import DatabaseExecutor
+from app.rag.chroma import RAGController
 
 llm_provider = GeminiProvider()
 db_executor = DatabaseExecutor()
+rag_controller = RAGController()
 
 def generate_sql_node(state: AgentState) -> AgentState:
     print("--- GENERATING SQL ---")
     question = state["user_question"]
     
-    # For Phase 1, just get the hardcoded schema (no RAG yet)
-    schema = db_executor.get_schema()
+    # Retrieve exactly what we need from ChromaDB
+    print(f"--- RETRIEVING CONTEXT FOR: '{question}' ---")
+    schema_context = rag_controller.retrieve_context(question)
     
-    sql = llm_provider.generate_sql(question, schema)
+    sql = llm_provider.generate_sql(question, schema_context)
     
     return {
         "user_question": question,
