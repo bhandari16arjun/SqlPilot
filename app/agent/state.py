@@ -6,6 +6,8 @@ class AgentState(TypedDict):
     is_ambiguous: Optional[bool]
     clarification_question: Optional[str]
     conversation_history: List[str]
+    sql_variants: Optional[List[str]]
+    valid_sql_variants: Optional[List[str]]
     generated_sql: Optional[str]
     error_message: Optional[str]
     retry_count: int

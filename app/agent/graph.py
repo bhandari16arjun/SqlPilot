@@ -7,6 +7,7 @@ from .nodes import (
     clarify_node,
     generate_sql_node, 
     validate_sql_node,
+    select_best_sql_node,
     execute_sql_node, 
     explain_results_node
 )
@@ -19,11 +20,11 @@ def route_ambiguity(state: AgentState):
     return "generate_sql"
 
 def route_after_validation(state: AgentState):
-    if state.get("error_message"):
+    if not state.get("valid_sql_variants"):
         if state.get("retry_count", 0) >= MAX_RETRIES:
             return "explain_results" # Give up
         return "generate_sql" # Retry
-    return "execute_sql"
+    return "select_best_sql"
 
 def route_after_execution(state: AgentState):
     if state.get("error_message"):
@@ -40,6 +41,7 @@ def create_graph():
     workflow.add_node("clarify", clarify_node)
     workflow.add_node("generate_sql", generate_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
+    workflow.add_node("select_best_sql", select_best_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("explain_results", explain_results_node)
 
@@ -66,10 +68,13 @@ def create_graph():
         route_after_validation,
         {
             "generate_sql": "generate_sql",
-            "execute_sql": "execute_sql",
+            "select_best_sql": "select_best_sql",
             "explain_results": "explain_results"
         }
     )
+    
+    # Select Best -> Execute
+    workflow.add_edge("select_best_sql", "execute_sql")
     
     # Execution Loop
     workflow.add_conditional_edges(

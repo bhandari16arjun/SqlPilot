@@ -42,7 +42,7 @@ def clarify_node(state: AgentState) -> AgentState:
     return state
 
 def generate_sql_node(state: AgentState) -> AgentState:
-    print("--- GENERATING SQL ---")
+    print("--- GENERATING SQL VARIANTS ---")
     question = state["user_question"]
     schema_context = state["schema_context"]
     history = state.get("conversation_history", [])
@@ -50,26 +50,51 @@ def generate_sql_node(state: AgentState) -> AgentState:
     
     full_context = schema_context + "\n\nClarifications: " + str(history)
     
-    # Self-Correction: If we hit an error earlier, feed it back to the LLM
     if error_msg:
         print(f"--- RETRYING AFTER ERROR: {error_msg} ---")
-        full_context += f"\n\nYOUR PREVIOUS QUERY FAILED WITH ERROR:\n{error_msg}\nPLEASE FIX IT."
+        full_context += f"\n\nYOUR PREVIOUS QUERIES FAILED WITH ERROR:\n{error_msg}\nPLEASE FIX IT."
         
-    sql = llm_provider.generate_sql(question, full_context)
+    variants = llm_provider.generate_sql(question, full_context)
+    print(f"[Generated {len(variants)} variants]")
     
-    state["generated_sql"] = sql
-    state["error_message"] = None # Reset error flag after generating
+    state["sql_variants"] = variants
+    state["error_message"] = None
     return state
 
 def validate_sql_node(state: AgentState) -> AgentState:
-    print("--- VALIDATING SQL (AST Check) ---")
-    sql = state.get("generated_sql", "")
-    error_msg = validate_sql(sql)
+    print("--- VALIDATING SQL VARIANTS (AST Check) ---")
+    variants = state.get("sql_variants", [])
+    valid_variants = []
+    errors = []
     
-    if error_msg:
-        print(f"[Validation Failed] {error_msg}")
-        state["error_message"] = error_msg
+    for i, sql in enumerate(variants):
+        error_msg = validate_sql(sql)
+        if error_msg:
+            errors.append(f"Variant {i+1} failed: {error_msg}")
+        else:
+            valid_variants.append(sql)
+            
+    state["valid_sql_variants"] = valid_variants
+    
+    if not valid_variants:
+        combined_error = "All generated variants failed validation:\n" + "\n".join(errors)
+        print(f"[Validation Failed] {combined_error}")
+        state["error_message"] = combined_error
         state["retry_count"] = state.get("retry_count", 0) + 1
+    else:
+        print(f"[{len(valid_variants)} variants passed validation]")
+        
+    return state
+
+def select_best_sql_node(state: AgentState) -> AgentState:
+    valid_variants = state.get("valid_sql_variants", [])
+    if not valid_variants:
+        return state
+        
+    print(f"--- SELECTING BEST SQL FROM {len(valid_variants)} VALID VARIANTS ---")
+    best_sql = llm_provider.select_best_sql(state["user_question"], valid_variants)
+    
+    state["generated_sql"] = best_sql
     return state
 
 def execute_sql_node(state: AgentState) -> AgentState:
