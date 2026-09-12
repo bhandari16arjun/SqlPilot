@@ -8,6 +8,7 @@ def main():
     rag = RAGController()
     rag.index_schema()
     rag.index_knowledge_base()
+    rag.index_examples()
     print("Done! ChromaDB is now populated.")
 
 if __name__ == "__main__":

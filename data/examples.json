@@ -1,0 +1,10 @@
+[
+  {
+    "question": "What is our MRR (Monthly Recurring Revenue)?",
+    "sql": "SELECT SUM(monthly_fee) AS mrr FROM subscriptions WHERE status = 'active';"
+  },
+  {
+    "question": "Show me the top 5 customers by total invoice amount.",
+    "sql": "SELECT c.name, SUM(i.amount) AS total_spent FROM customers c JOIN subscriptions s ON c.id = s.customer_id JOIN invoices i ON s.id = i.subscription_id WHERE i.payment_status = 'paid' GROUP BY c.id ORDER BY total_spent DESC LIMIT 5;"
+  }
+]

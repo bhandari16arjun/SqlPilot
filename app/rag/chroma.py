@@ -18,6 +18,10 @@ class RAGController:
             name="business_rules", 
             embedding_function=emb_fn
         )
+        self.example_collection = self.client.get_or_create_collection(
+            name="golden_examples", 
+            embedding_function=emb_fn
+        )
 
     def index_schema(self, sqlite_db_path="data/demo.db"):
         print("Indexing database schema...")
@@ -64,8 +68,29 @@ class RAGController:
                 count += 1
         print(f"Successfully indexed {count} business rules.")
 
-    def retrieve_context(self, question: str, n_schema=4, n_kb=2) -> str:
-        """Searches ChromaDB for the most relevant tables and business rules."""
+    def index_examples(self, examples_path="data/examples.json"):
+        import json
+        print("Indexing golden examples...")
+        if not os.path.exists(examples_path):
+            print("No examples.json found, skipping.")
+            return
+            
+        with open(examples_path, 'r', encoding='utf-8') as f:
+            examples = json.load(f)
+            
+        count = 0
+        for i, ex in enumerate(examples):
+            doc = f"Question: {ex['question']}\nSQL: {ex['sql']}"
+            self.example_collection.upsert(
+                documents=[doc],
+                metadatas=[{"type": "example"}],
+                ids=[f"example_{i}"]
+            )
+            count += 1
+        print(f"Successfully indexed {count} examples.")
+
+    def retrieve_context(self, question: str, n_schema=4, n_kb=2, n_examples=2) -> str:
+        """Searches ChromaDB for the most relevant tables, rules, and examples."""
         
         # Search for tables
         schema_results = self.schema_collection.query(
@@ -79,6 +104,12 @@ class RAGController:
             n_results=n_kb
         )
         
+        # Search for golden examples
+        example_results = self.example_collection.query(
+            query_texts=[question],
+            n_results=n_examples
+        )
+        
         context_parts = []
         context_parts.append("=== RELEVANT DATABASE TABLES ===")
         if schema_results['documents'] and len(schema_results['documents'][0]) > 0:
@@ -88,9 +119,13 @@ class RAGController:
         context_parts.append("\n=== RELEVANT BUSINESS RULES ===")
         if kb_results['documents'] and len(kb_results['documents'][0]) > 0:
             for doc, distance in zip(kb_results['documents'][0], kb_results['distances'][0]):
-                # L2 distance check: Only include rules that are actually relevant to the question
-                # MiniLM distances generally range from 0 (perfect) to 2 (unrelated).
                 if distance < 1.6:  
+                    context_parts.append(doc)
+                    
+        context_parts.append("\n=== RELEVANT GOLDEN SQL EXAMPLES ===")
+        if example_results['documents'] and len(example_results['documents'][0]) > 0:
+            for doc, distance in zip(example_results['documents'][0], example_results['distances'][0]):
+                if distance < 1.5:  
                     context_parts.append(doc)
                     
         return "\n\n".join(context_parts)
