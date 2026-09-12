@@ -27,6 +27,8 @@ def main():
             "clarification_question": "",
             "conversation_history": [],
             "generated_sql": None,
+            "error_message": None,
+            "retry_count": 0,
             "execution_results": None,
             "final_answer": None
         }

@@ -6,14 +6,31 @@ from .nodes import (
     check_ambiguity_node, 
     clarify_node,
     generate_sql_node, 
+    validate_sql_node,
     execute_sql_node, 
     explain_results_node
 )
+
+MAX_RETRIES = 2
 
 def route_ambiguity(state: AgentState):
     if state.get("is_ambiguous"):
         return "clarify"
     return "generate_sql"
+
+def route_after_validation(state: AgentState):
+    if state.get("error_message"):
+        if state.get("retry_count", 0) >= MAX_RETRIES:
+            return "explain_results" # Give up
+        return "generate_sql" # Retry
+    return "execute_sql"
+
+def route_after_execution(state: AgentState):
+    if state.get("error_message"):
+        if state.get("retry_count", 0) >= MAX_RETRIES:
+            return "explain_results" # Give up
+        return "generate_sql" # Retry
+    return "explain_results"
 
 def create_graph():
     workflow = StateGraph(AgentState)
@@ -22,14 +39,14 @@ def create_graph():
     workflow.add_node("check_ambiguity", check_ambiguity_node)
     workflow.add_node("clarify", clarify_node)
     workflow.add_node("generate_sql", generate_sql_node)
+    workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("explain_results", explain_results_node)
 
-    # RAG -> Ambiguity Check
     workflow.set_entry_point("retrieve_context")
     workflow.add_edge("retrieve_context", "check_ambiguity")
     
-    # Branching: Ambiguous -> Clarify, Clear -> Generate SQL
+    # Ambiguity Check
     workflow.add_conditional_edges(
         "check_ambiguity",
         route_ambiguity,
@@ -38,15 +55,33 @@ def create_graph():
             "generate_sql": "generate_sql"
         }
     )
-    
-    # Loop back from Clarify to RAG to inject the new context
     workflow.add_edge("clarify", "retrieve_context")
     
-    # Standard generation pipeline
-    workflow.add_edge("generate_sql", "execute_sql")
-    workflow.add_edge("execute_sql", "explain_results")
+    # Generation -> Validation
+    workflow.add_edge("generate_sql", "validate_sql")
+    
+    # Validation Loop
+    workflow.add_conditional_edges(
+        "validate_sql",
+        route_after_validation,
+        {
+            "generate_sql": "generate_sql",
+            "execute_sql": "execute_sql",
+            "explain_results": "explain_results"
+        }
+    )
+    
+    # Execution Loop
+    workflow.add_conditional_edges(
+        "execute_sql",
+        route_after_execution,
+        {
+            "generate_sql": "generate_sql",
+            "explain_results": "explain_results"
+        }
+    )
+    
     workflow.add_edge("explain_results", END)
 
     memory = MemorySaver()
-    # Interrupt execution BEFORE the clarify node runs
     return workflow.compile(checkpointer=memory, interrupt_before=["clarify"])

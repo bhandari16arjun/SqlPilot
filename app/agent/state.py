@@ -7,5 +7,7 @@ class AgentState(TypedDict):
     clarification_question: Optional[str]
     conversation_history: List[str]
     generated_sql: Optional[str]
+    error_message: Optional[str]
+    retry_count: int
     execution_results: Optional[List[dict]]
     final_answer: Optional[str]
