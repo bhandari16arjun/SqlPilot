@@ -35,7 +35,7 @@ def main():
         
         # Initialize Langfuse Callback for Tracing
         try:
-            from langfuse.callback import CallbackHandler
+            from langfuse.langchain import CallbackHandler
             langfuse_handler = CallbackHandler()
             callbacks = [langfuse_handler]
         except Exception as e:
