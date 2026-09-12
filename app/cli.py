@@ -33,8 +33,20 @@ def main():
             "final_answer": None
         }
         
+        # Initialize Langfuse Callback for Tracing
+        try:
+            from langfuse.callback import CallbackHandler
+            langfuse_handler = CallbackHandler()
+            callbacks = [langfuse_handler]
+        except Exception as e:
+            print(f"Warning: Langfuse tracing disabled. {e}")
+            callbacks = []
+
         # Unique thread ID for this conversation (required for MemorySaver to work)
-        config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        config = {
+            "configurable": {"thread_id": str(uuid.uuid4())},
+            "callbacks": callbacks
+        }
         
         try:
             # We use stream so we can catch the interrupt
