@@ -34,7 +34,11 @@ def main():
             "is_ambiguous": False,
             "clarification_question": "",
             "conversation_history": [],
+            "sql_variants": None,
+            "valid_sql_variants": None,
             "generated_sql": None,
+            "is_mutation": False,
+            "mutation_approved": False,
             "error_message": None,
             "retry_count": 0,
             "execution_results": None,
@@ -61,23 +65,36 @@ def main():
             for event in graph.stream(initial_state, config):
                 pass
                 
-            # Check the current state of the graph
             state = graph.get_state(config)
             
-            # Loop as long as the graph is paused at the 'clarify' node
-            while state.next and state.next[0] == "clarify":
+            # Loop as long as the graph is paused at an interrupt node
+            while state.next and state.next[0] in ["clarify", "require_approval"]:
                 current_values = state.values
-                clarification_q = current_values.get("clarification_question")
                 
-                print(f"\n[AI Needs Clarification] 🤔 {clarification_q}")
-                user_answer = input("Your answer: ")
-                
-                # Append to history
-                history = current_values.get("conversation_history", [])
-                history.append(f"AI: {clarification_q}\nUser: {user_answer}")
-                
-                # Update the state directly
-                graph.update_state(config, {"conversation_history": history, "is_ambiguous": False})
+                if state.next[0] == "clarify":
+                    clarification_q = current_values.get("clarification_question")
+                    
+                    print(f"\n[AI Needs Clarification] 🤔 {clarification_q}")
+                    user_answer = input("Your answer: ")
+                    
+                    # Append to history
+                    history = current_values.get("conversation_history", [])
+                    history.append(f"AI: {clarification_q}\nUser: {user_answer}")
+                    
+                    # Update the state directly
+                    graph.update_state(config, {"conversation_history": history, "is_ambiguous": False})
+                    
+                elif state.next[0] == "require_approval":
+                    sql = current_values.get("generated_sql")
+                    print(f"\n⚠️ [WARNING: DATABASE MUTATION DETECTED] ⚠️")
+                    print(f"The AI wants to execute the following query:\n{sql}")
+                    ans = input("Do you approve this change? (y/n): ")
+                    
+                    approved = ans.lower().startswith('y')
+                    graph.update_state(config, {"mutation_approved": approved})
+                    
+                    if not approved:
+                        print("Mutation aborted by user.")
                 
                 # Resume execution with None
                 for event in graph.stream(None, config):

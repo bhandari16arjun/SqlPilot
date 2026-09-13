@@ -75,14 +75,21 @@ def validate_sql_node(state: AgentState) -> AgentState:
     valid_variants = []
     errors = []
     
+    # We will track if these variants are mutations. 
+    # If any valid variant is a mutation, we flag the whole execution.
+    has_mutation = False
+    
     for i, sql in enumerate(variants):
-        error_msg = validate_sql(sql)
+        error_msg, is_mutation = validate_sql(sql)
         if error_msg:
             errors.append(f"Variant {i+1} failed: {error_msg}")
         else:
             valid_variants.append(sql)
+            if is_mutation:
+                has_mutation = True
             
     state["valid_sql_variants"] = valid_variants
+    state["is_mutation"] = has_mutation
     
     if not valid_variants:
         combined_error = "All generated variants failed validation:\n" + "\n".join(errors)
@@ -90,7 +97,7 @@ def validate_sql_node(state: AgentState) -> AgentState:
         state["error_message"] = combined_error
         state["retry_count"] = state.get("retry_count", 0) + 1
     else:
-        print(f"[{len(valid_variants)} variants passed validation]")
+        print(f"[{len(valid_variants)} variants passed validation. Mutation detected: {has_mutation}]")
         
     return state
 
@@ -103,6 +110,10 @@ def select_best_sql_node(state: AgentState) -> AgentState:
     best_sql = llm_provider.select_best_sql(state["user_question"], valid_variants)
     
     state["generated_sql"] = best_sql
+    return state
+
+def require_approval_node(state: AgentState) -> AgentState:
+    # This is an interrupt node. The CLI will pause here and ask for user approval.
     return state
 
 def execute_sql_node(state: AgentState) -> AgentState:

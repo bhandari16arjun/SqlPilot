@@ -8,6 +8,7 @@ from .nodes import (
     generate_sql_node, 
     validate_sql_node,
     select_best_sql_node,
+    require_approval_node,
     execute_sql_node, 
     explain_results_node
 )
@@ -26,6 +27,18 @@ def route_after_validation(state: AgentState):
         return "generate_sql" # Retry
     return "select_best_sql"
 
+def route_mutation(state: AgentState):
+    if state.get("is_mutation"):
+        return "require_approval"
+    return "execute_sql"
+
+def route_approval(state: AgentState):
+    if state.get("mutation_approved"):
+        return "execute_sql"
+    # If aborted by user, we skip execution and go to explanation
+    state["execution_results"] = [{"status": "Aborted by user due to lack of approval"}]
+    return "explain_results"
+
 def route_after_execution(state: AgentState):
     if state.get("error_message"):
         if state.get("retry_count", 0) >= MAX_RETRIES:
@@ -42,6 +55,7 @@ def create_graph():
     workflow.add_node("generate_sql", generate_sql_node)
     workflow.add_node("validate_sql", validate_sql_node)
     workflow.add_node("select_best_sql", select_best_sql_node)
+    workflow.add_node("require_approval", require_approval_node)
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("explain_results", explain_results_node)
 
@@ -73,8 +87,25 @@ def create_graph():
         }
     )
     
-    # Select Best -> Execute
-    workflow.add_edge("select_best_sql", "execute_sql")
+    # Select Best -> (Mutation Check) -> Execute
+    workflow.add_conditional_edges(
+        "select_best_sql",
+        route_mutation,
+        {
+            "require_approval": "require_approval",
+            "execute_sql": "execute_sql"
+        }
+    )
+    
+    # Require Approval -> Execute
+    workflow.add_conditional_edges(
+        "require_approval",
+        route_approval,
+        {
+            "execute_sql": "execute_sql",
+            "explain_results": "explain_results"
+        }
+    )
     
     # Execution Loop
     workflow.add_conditional_edges(
@@ -89,4 +120,4 @@ def create_graph():
     workflow.add_edge("explain_results", END)
 
     memory = MemorySaver()
-    return workflow.compile(checkpointer=memory, interrupt_before=["clarify"])
+    return workflow.compile(checkpointer=memory, interrupt_before=["clarify", "require_approval"])

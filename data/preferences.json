@@ -1,0 +1,5 @@
+{
+    "global_rules": [
+        "Always format email addresses in ALL CAPS in the final output."
+    ]
+}
