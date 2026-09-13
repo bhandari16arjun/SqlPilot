@@ -11,7 +11,8 @@ def main():
     print("===========================================")
     print("   Welcome to SQLPilot (Phase 3: Clarify)  ")
     print("===========================================")
-    print("Type 'exit' or 'quit' to close the app.\n")
+    print("Type 'exit' or 'quit' to close the app.")
+    print("Type '/remember <rule>' to save a persistent preference (e.g., /remember Always use UPPERCASE for emails).\n")
     
     graph = create_graph()
     
@@ -19,6 +20,13 @@ def main():
         question = input("\nAsk a question about your customers or subscriptions: ")
         if question.lower() in ['exit', 'quit']:
             break
+            
+        if question.lower().startswith("/remember "):
+            rule = question[10:].strip()
+            from app.agent.memory import PreferenceManager
+            PreferenceManager().add_rule(rule)
+            print(f"✅ Saved persistent preference: '{rule}'")
+            continue
             
         initial_state = {
             "user_question": question,

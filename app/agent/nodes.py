@@ -50,6 +50,14 @@ def generate_sql_node(state: AgentState) -> AgentState:
     
     full_context = schema_context + "\n\nClarifications: " + str(history)
     
+    # Inject persistent user preferences
+    from app.agent.memory import PreferenceManager
+    prefs = PreferenceManager().get_rules()
+    if prefs:
+        full_context += "\n\nCRITICAL USER PREFERENCES (You must follow these rules):\n" 
+        for p in prefs:
+            full_context += f"- {p}\n"
+    
     if error_msg:
         print(f"--- RETRYING AFTER ERROR: {error_msg} ---")
         full_context += f"\n\nYOUR PREVIOUS QUERIES FAILED WITH ERROR:\n{error_msg}\nPLEASE FIX IT."
