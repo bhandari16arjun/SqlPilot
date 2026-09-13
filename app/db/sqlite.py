@@ -11,6 +11,9 @@ class DatabaseExecutor:
         cursor = conn.cursor()
         
         try:
+            # SECURITY: Enforce read-only at the database engine level!
+            cursor.execute("PRAGMA query_only = ON;")
+            
             cursor.execute(sql)
             rows = cursor.fetchall()
             results = [dict(row) for row in rows]

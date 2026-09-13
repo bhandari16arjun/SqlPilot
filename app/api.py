@@ -31,8 +31,7 @@ class QueryRequest(BaseModel):
 
 class ResumeRequest(BaseModel):
     thread_id: str
-    action: str  # "clarify" or "approve"
-    answer: str  # Text for clarification, or "y"/"n" for approval
+    answer: str  # Text for clarification
 
 # --- Endpoints ---
 @app.post("/query")
@@ -52,8 +51,6 @@ def run_query(req: QueryRequest):
         "sql_variants": None,
         "valid_sql_variants": None,
         "generated_sql": None,
-        "is_mutation": False,
-        "mutation_approved": False,
         "error_message": None,
         "retry_count": 0,
         "execution_results": None,
@@ -67,19 +64,12 @@ def run_query(req: QueryRequest):
     state = graph.get_state(config)
     
     # Check if the graph paused for Human-in-the-Loop interaction
-    if state.next:
-        if state.next[0] == "clarify":
-            return {
-                "status": "needs_clarification",
-                "thread_id": thread_id,
-                "message": state.values.get("clarification_question")
-            }
-        elif state.next[0] == "require_approval":
-            return {
-                "status": "needs_approval",
-                "thread_id": thread_id,
-                "message": f"WARNING: Mutation detected. Do you approve this query?\n{state.values.get('generated_sql')}"
-            }
+    if state.next and state.next[0] == "clarify":
+        return {
+            "status": "needs_clarification",
+            "thread_id": thread_id,
+            "message": state.values.get("clarification_question")
+        }
             
     return {
         "status": "success",
@@ -103,16 +93,11 @@ def resume_query(req: ResumeRequest):
     current_values = state.values
     
     # Handle Clarification Interrupt
-    if state.next[0] == "clarify" and req.action == "clarify":
+    if state.next[0] == "clarify":
         history = current_values.get("conversation_history", [])
         q = current_values.get("clarification_question")
         history.append(f"AI: {q}\nUser: {req.answer}")
         graph.update_state(config, {"conversation_history": history, "is_ambiguous": False})
-        
-    # Handle Security Approval Interrupt
-    elif state.next[0] == "require_approval" and req.action == "approve":
-        approved = req.answer.lower().startswith('y')
-        graph.update_state(config, {"mutation_approved": approved})
     else:
         raise HTTPException(status_code=400, detail="Action mismatch with current graph state.")
         
