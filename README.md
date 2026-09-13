@@ -10,33 +10,30 @@ Built entirely in Python, SQLPilot uses a **LangGraph state machine** to orchest
 
 ```mermaid
 flowchart TD
-    User([User Asks Question]) --> API[FastAPI Endpoint]
-    API --> RAG[RAG Layer: ChromaDB + SentenceTransformers]
-    RAG -.-> Schema[Database Schema]
-    RAG -.-> KB[Business Rules / Knowledge Base]
+    Client([User]) --> API[FastAPI / CLI]
+    API --> Agent[LangGraph Engine]
     
-    RAG --> Agent[LangGraph Agent Engine]
-    
-    subgraph "Agent State Machine"
-        Agent --> CheckAmbiguity{Is Ambiguous?}
-        CheckAmbiguity -- Yes --> Clarify[Clarification Node]
-        Clarify -.-> |Pause & Ask User| User
+    subgraph Core ["Agent State Machine"]
+        Agent --> RAG[RAG Layer]
+        RAG --> Ambiguity{Is Ambiguous?}
         
-        CheckAmbiguity -- No --> Generate[Generate 3 SQL Variants]
-        Generate --> Validate[SQLGlot Validation Node]
+        Ambiguity -- Yes --> Clarify[Clarification Node]
+        Ambiguity -- No --> Generate[Generate SQL Variants]
         
+        Generate --> Validate[AST Validation]
         Validate -- Syntax Error --> Generate
-        Validate -- Valid --> SelectBest[LLM Judges Best Query]
+        Validate -- Valid --> SelectBest[Judge Best Query]
         
-        SelectBest --> Execute[Execution Node (PRAGMA query_only = ON)]
-        
+        SelectBest --> Execute[Execute SQL]
         Execute -- Runtime Error --> Generate
-        Execute -- Success --> Explain[Explain Results Node]
+        Execute -- Success --> Explain[Explain Results]
     end
     
-    Execute -.-> DB[(Read-Only SQLite)]
+    Execute -.-> DB[(SQLite Sandbox)]
+    RAG -.-> VectorDB[(ChromaDB)]
+    
+    Clarify -.-> |Interrupt| API
     Explain --> API
-    API --> User
 ```
 
 *(Note: You can place your custom architecture diagram screenshot at `docs/architecture.png`)*
