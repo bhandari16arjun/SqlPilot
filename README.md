@@ -4,25 +4,76 @@ SQLPilot is a production-grade **Agentic RAG pipeline** that translates natural 
 
 Built entirely in Python, SQLPilot uses a **LangGraph state machine** to orchestrate an advanced reasoning loop that includes Ambiguity Detection, AST Security Validation, Self-Consistency (Chain-of-Thought), and Human-in-the-Loop approvals.
 
-## 🧠 Core Features
+---
 
-* **RAG Context Engine:** Uses `ChromaDB` and `sentence-transformers` to dynamically inject database schemas, business logic (markdown files), and "Golden SQL" examples into the LLM's prompt.
-* **Human-in-the-Loop Clarification:** If a user's question is ambiguous or missing information, the AI pauses execution and asks the user for clarification before generating SQL.
-* **AST Security Blocklist:** Uses `SQLGlot` to parse generated queries into an Abstract Syntax Tree (AST). It strictly blocks destructive queries (`DROP TABLE`) and pauses execution to ask for explicit human Y/N approval before allowing safe mutations (`UPDATE`, `INSERT`, `DELETE`).
-* **Self-Consistency (Majority Voting):** Generates 3 entirely different SQL variants for every question, validates them all, and uses the LLM as a "Judge" to select the most optimized query.
-* **Self-Correction Loops:** If a query fails syntax validation or throws a database runtime error (e.g., missing column), the graph automatically loops the error back to the LLM to fix it.
-* **Telemetry & Tracing:** Integrated with `Langfuse` to visually trace every LLM prompt, token cost, and latency metric in a cloud dashboard.
-* **Production API:** Wraps the entire stateful LangGraph agent in a stateless, asynchronous **FastAPI** web server.
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    User([User Asks Question]) --> API[FastAPI Endpoint]
+    API --> RAG[RAG Layer: ChromaDB + SentenceTransformers]
+    RAG -.-> Schema[Database Schema]
+    RAG -.-> KB[Business Rules / Knowledge Base]
+    
+    RAG --> Agent[LangGraph Agent Engine]
+    
+    subgraph "Agent State Machine"
+        Agent --> CheckAmbiguity{Is Ambiguous?}
+        CheckAmbiguity -- Yes --> Clarify[Clarification Node]
+        Clarify -.-> |Pause & Ask User| User
+        
+        CheckAmbiguity -- No --> Generate[Generate 3 SQL Variants]
+        Generate --> Validate[SQLGlot Validation Node]
+        
+        Validate -- Syntax Error --> Generate
+        Validate -- Valid --> SelectBest[LLM Judges Best Query]
+        
+        SelectBest --> Execute[Execution Node (PRAGMA query_only = ON)]
+        
+        Execute -- Runtime Error --> Generate
+        Execute -- Success --> Explain[Explain Results Node]
+    end
+    
+    Execute -.-> DB[(Read-Only SQLite)]
+    Explain --> API
+    API --> User
+```
+
+*(Note: You can place your custom architecture diagram screenshot at `docs/architecture.png`)*
+
+---
+
+## 📊 Project Status
+
+| Phase | Name | Status |
+|---|---|---|
+| 0 | Foundation | 🟢 Done |
+| 1 | Core Pipeline | 🟢 Done |
+| 2 | RAG Layer | 🟢 Done |
+| 3 | Clarification Engine | 🟢 Done |
+| 4 | AST Validation & Blocklist | 🟢 Done |
+| 5 | Self-Consistency (Majority Voting) | 🟢 Done |
+| 6 | Few-Shot Golden Examples | 🟢 Done |
+| 7 | Observability (Langfuse) | 🟢 Done |
+| 8 | Advanced Memory (User Rules) | 🟢 Done |
+| 9 | Production API (FastAPI) | 🟢 Done |
+| 10 | Security Sandbox (Read-Only Mode) | 🟢 Done |
+| 11 | Streamlit UI | 🟡 Pending (V2 Plan) |
+| 12 | Test & Eval Suite | 🟡 Pending (V2 Plan) |
+
+---
 
 ## 🛠️ Tech Stack
 
 * **Frameworks:** Python, LangGraph, LangChain, FastAPI, Uvicorn
 * **AI & LLM:** Google Gemini 3.5 Flash
 * **Retrieval (RAG):** ChromaDB, HuggingFace (`all-MiniLM-L6-v2`)
-* **Security:** SQLGlot
+* **Security:** SQLGlot (AST parsing), SQLite Read-Only Sandbox
 * **Observability:** Langfuse
 
-## 🚀 Quickstart
+---
+
+## 🚀 Getting Started
 
 ### 1. Installation
 
@@ -77,14 +128,27 @@ python -m uvicorn app.api:app --reload
 ```
 Open your browser and navigate to **http://localhost:8000/docs** to interact with the Swagger UI.
 
-## 🏗️ Architecture
+---
 
-1. **User asks a question** -> API receives `POST /query`.
-2. **RAG Node** searches ChromaDB for relevant tables, rules, and examples.
-3. **Ambiguity Node** checks if the question makes sense. If not, it pauses and waits for user input via `POST /resume`.
-4. **Generation Node** writes 3 SQL variants.
-5. **Validation Node** parses the SQL into an AST, checking for syntax errors and mutations.
-6. **Selection Node** judges the remaining valid variants and picks the best one.
-7. **Mutation Node** checks if the query modifies data. If yes, it pauses and waits for 'Y/N' approval via `POST /resume`.
-8. **Execution Node** runs the SQL against the database.
-9. **Explanation Node** summarizes the data into plain English.
+## 🛡️ Security
+
+This project employs a strict defense-in-depth approach to database access:
+1. **AST Blocklist**: `SQLGlot` parses generated queries into an Abstract Syntax Tree (AST) and rigorously rejects `UPDATE`, `INSERT`, `DELETE`, `DROP`, and `ALTER`.
+2. **Database Sandbox**: The `DatabaseExecutor` explicitly sets `PRAGMA query_only = ON;` before executing any statement, ensuring the underlying database engine cannot mutate data even if an exploit bypasses the Python layer.
+
+---
+
+## 📁 Project Structure
+
+```
+app/
+  agent/          LangGraph state machine (nodes, edges, prompt logic)
+  db/             SQLite connector (read-only execution)
+  llm/            LLM client wrapper (Gemini + LangChain)
+  rag/            ChromaDB retriever
+  cli.py          Interactive CLI entry point
+  api.py          FastAPI production server
+scripts/          Database seeding and RAG indexing scripts
+data/             SQLite database file and persistent JSON memory
+README.md         Project overview and architecture
+```
