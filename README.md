@@ -1,4 +1,4 @@
-# ?? SQLPilot (v2.0)
+# 🚀 SQLPilot (v2.0)
 
 A Text-to-SQL agent that **asks before it guesses**. Built with LangGraph, ChromaDB, SQLGlot, FastAPI, and Streamlit.
 
@@ -17,7 +17,7 @@ Ask a question in plain English, and SQLPilot retrieves the right schema, checks
 
 ---
 
-## ??? Why This Exists (The Challenges Solved)
+## 🛡️ Why This Exists (The Challenges Solved)
 
 Building a text-to-SQL system that humans can actually trust is hard. Naive "prompt-in, query-out" scripts fail for predictable reasons. Here is how SQLPilot v2.0 solves them:
 
@@ -39,9 +39,9 @@ Building a text-to-SQL system that humans can actually trust is hard. Naive "pro
 
 ---
 
-## ??? Architecture & State Graph
+## 🏗️ Architecture & State Graph
 
-The core of the system is a **LangGraph state machine**. A single typed AgentState flows through a series of nodes with conditional routing -- including two independent retry loops and an early-exit path for ambiguous questions.
+The core of the system is a **LangGraph state machine**. A single typed AgentState flows through a series of nodes with conditional routing — including two independent retry loops and an early-exit path for ambiguous questions.
 
 `mermaid
 graph TD
@@ -79,7 +79,7 @@ graph TD
 
 ---
 
-## ?? How a Request Flows Through the System
+## 🔄 How a Request Flows Through the System
 
 1. **User asks a question** in the Streamlit UI.
 2. Streamlit hits the FastAPI /query endpoint.
@@ -92,7 +92,7 @@ graph TD
 
 ---
 
-## ??? Validation & Self-Correction
+## 🛡️ Validation & Self-Correction
 
 SQLPilot features a **Dedicated Recovery Node**. If an Execution Error occurs (e.g. SQLite error: no such table: customers), the LangGraph state machine catches the error, records it in the correction_history state array, and routes it to the correct_sql node. 
 
@@ -100,7 +100,7 @@ The LLM is prompted with the entire history of its failed attempts and the exact
 
 ---
 
-## ?? Security & Sandbox
+## 🔒 Security & Sandbox
 
 We take security seriously. SQLPilot deploys a defense-in-depth approach:
 1. **Prompt Engineering Sandbox:** The LLM refuses to write DDL/DML.
@@ -109,10 +109,10 @@ We take security seriously. SQLPilot deploys a defense-in-depth approach:
 
 ---
 
-## ?? Live Demo & Deployment
+## 🌐 Live Demo & Deployment
 
 **Check out the live deployment here:**  
-?? **[https://sqlpilot-z317.onrender.com](https://sqlpilot-z317.onrender.com)** *(Streamlit UI)*
+🔗 **[https://sqlpilot-z317.onrender.com](https://sqlpilot-z317.onrender.com)** *(Streamlit UI)*
 
 ### Deploying to Render
 This repository is heavily optimized for Render's Free Tier.
@@ -121,7 +121,7 @@ This repository is heavily optimized for Render's Free Tier.
 
 ---
 
-## ?? Local Development
+## 💻 Local Development
 
 \\ash
 git clone https://github.com/YOUR-USERNAME/SqlPilot.git
