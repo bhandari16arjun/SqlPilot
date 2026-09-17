@@ -8,7 +8,7 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
     def __init__(self):
         api_key = os.getenv("GEMINI_API_KEY", "missing_api_key_prevent_crash_on_boot")
         self.embedder = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004",
+            model="models/gemini-embedding-2",
             google_api_key=api_key
         )
         
