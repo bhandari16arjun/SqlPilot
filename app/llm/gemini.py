@@ -7,10 +7,14 @@ from .base import LLMProvider
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
+        # We provide a fallback string so Uvicorn doesn't instantly crash on boot 
+        # if the user forgets to set the GEMINI_API_KEY in the Render dashboard.
+        api_key = os.getenv("GEMINI_API_KEY") or "missing_api_key_prevent_crash_on_boot"
+        
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
+            model="gemini-1.5-flash",
             temperature=0,
-            api_key=os.getenv("GEMINI_API_KEY")
+            api_key=api_key
         )
 
     @retry(
