@@ -1,12 +1,23 @@
 import os
 import sqlite3
 import chromadb
-from chromadb.utils import embedding_functions
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
-# Use Gemini API for embeddings instead of local PyTorch models to save 800MB+ RAM and prevent OOM on Render
-emb_fn = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
-    api_key=os.getenv("GEMINI_API_KEY", "missing_api_key_prevent_crash_on_boot")
-)
+class GeminiEmbeddingFunction(EmbeddingFunction):
+    def __init__(self):
+        api_key = os.getenv("GEMINI_API_KEY", "missing_api_key_prevent_crash_on_boot")
+        self.embedder = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=api_key
+        )
+        
+    def __call__(self, input: Documents) -> Embeddings:
+        # Langchain expects a list of strings, which is what `input` is
+        return self.embedder.embed_documents(input)
+
+# Use our custom Gemini embedder to save 800MB+ RAM and prevent OOM on Render
+emb_fn = GeminiEmbeddingFunction()
 
 class RAGController:
     def __init__(self, db_dir="data/chroma_db"):
