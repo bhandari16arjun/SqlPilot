@@ -2,6 +2,7 @@ import os
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from .base import LLMProvider
 
 class GeminiProvider(LLMProvider):
@@ -11,6 +12,21 @@ class GeminiProvider(LLMProvider):
             temperature=0,
             api_key=os.getenv("GEMINI_API_KEY")
         )
+
+    @retry(
+        wait=wait_exponential(multiplier=1, min=4, max=20),
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception_type(Exception),
+        reraise=True
+    )
+    def _call_model(self, messages) -> str:
+        """Internal method to call the model with exponential backoff."""
+        response = self.llm.invoke(messages)
+        content = response.content
+        if isinstance(content, list):
+            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
+            content = "".join(text_blocks)
+        return str(content)
 
     def generate_sql(self, question: str, schema: str) -> list:
         system_prompt = f"""You are an expert SQL data analyst.
@@ -27,14 +43,7 @@ Here is the database schema and context:
             HumanMessage(content=question)
         ]
         
-        response = self.llm.invoke(messages)
-        content = response.content
-        
-        if isinstance(content, list):
-            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
-            content = "".join(text_blocks)
-            
-        content = str(content).strip()
+        content = self._call_model(messages).strip()
         
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
@@ -69,13 +78,8 @@ Return ONLY the raw SQL string of the best query. Do not wrap it in markdown or 
             HumanMessage(content=user_message)
         ]
         
-        response = self.llm.invoke(messages)
-        content = response.content
-        if isinstance(content, list):
-            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
-            content = "".join(text_blocks)
-            
-        return str(content).replace("```sql", "").replace("```", "").strip()
+        content = self._call_model(messages)
+        return content.replace("```sql", "").replace("```", "").strip()
 
     def explain_results(self, question: str, sql: str, results: list) -> str:
         system_prompt = "You are a helpful data analyst. Explain the results of a SQL query in plain, concise English."
@@ -91,12 +95,7 @@ Please provide a short answer to the original question based on these results.
             HumanMessage(content=user_message)
         ]
         
-        response = self.llm.invoke(messages)
-        content = response.content
-        if isinstance(content, list):
-            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
-            return "".join(text_blocks)
-        return str(content)
+        return self._call_model(messages).strip()
 
     def detect_ambiguity(self, question: str, schema: str, history: list) -> dict:
         system_prompt = f"""You are a strict data analyst. Check if the user's question is ambiguous given the schema.
@@ -117,13 +116,8 @@ History of clarifications:
             HumanMessage(content=question)
         ]
         
-        response = self.llm.invoke(messages)
-        content = response.content
-        if isinstance(content, list):
-            text_blocks = [blk["text"] if isinstance(blk, dict) and "text" in blk else str(blk) for blk in content]
-            content = "".join(text_blocks)
-            
-        content = str(content).strip()
+        content = self._call_model(messages).strip()
+        
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
             
