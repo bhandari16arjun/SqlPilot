@@ -123,20 +123,23 @@ This repository is heavily optimized for Render's Free Tier.
 
 ## 💻 Local Development
 
-\\ash
+```bash
 git clone https://github.com/YOUR-USERNAME/SqlPilot.git
 cd SqlPilot
 python -m venv venv
-source venv/bin/activate  # (On Windows: .env\Scriptsctivate)
+source venv/bin/activate  # (On Windows: .\venv\Scripts\activate)
 pip install -r requirements.txt
-\
-Create a .env file:
-\\env
+```
+
+Create a `.env` file:
+```env
 GEMINI_API_KEY=your_google_ai_studio_api_key_here
 SQLPILOT_API_URL=http://localhost:10000
-\
+```
+
 Boot the entire microservice architecture locally:
-\\ash
+```bash
 docker-compose up --build
-\- **Streamlit UI:** http://localhost:8501
-- **FastAPI Docs:** http://localhost:10000/docs
+```
+- **Streamlit UI:** `http://localhost:8501`
+- **FastAPI Docs:** `http://localhost:10000/docs`
