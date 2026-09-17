@@ -3,7 +3,7 @@ from app.llm.gemini import GeminiProvider
 from app.db.sqlite import DatabaseExecutor
 from app.rag.chroma import RAGController
 from app.agent.validators import validate_sql
-from app.agent.memory import memory_manager
+from app.agent.memory import PreferenceManager
 from app.security.rate_limiter import rate_limiter
 
 llm_provider = GeminiProvider()
@@ -54,7 +54,7 @@ def generate_sql_node(state: AgentState) -> AgentState:
     question = state.get("clarification_question") or state["user_question"]
     schema = state.get("schema_context", "")
     
-    prefs = memory_manager.get_preferences()
+    prefs = PreferenceManager().get_rules()
     
     full_context = f"SCHEMA:\n{schema}"
     if prefs:
