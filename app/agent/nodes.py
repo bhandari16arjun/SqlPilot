@@ -42,31 +42,22 @@ def clarify_node(state: AgentState) -> AgentState:
     return state
 
 def generate_sql_node(state: AgentState) -> AgentState:
-    print("--- GENERATING SQL VARIANTS ---")
-    question = state["user_question"]
-    schema_context = state["schema_context"]
-    history = state.get("conversation_history", [])
-    error_msg = state.get("error_message")
+    print("--- GENERATING SQL ---")
+    question = state.get("clarification_question") or state["user_question"]
+    schema = state.get("schema_context", "")
     
-    full_context = schema_context + "\n\nClarifications: " + str(history)
+    prefs = memory_manager.get_preferences()
     
-    # Inject persistent user preferences
-    from app.agent.memory import PreferenceManager
-    prefs = PreferenceManager().get_rules()
+    full_context = f"SCHEMA:\n{schema}"
     if prefs:
         full_context += "\n\nCRITICAL USER PREFERENCES (You must follow these rules):\n" 
         for p in prefs:
             full_context += f"- {p}\n"
-    
-    if error_msg:
-        print(f"--- RETRYING AFTER ERROR: {error_msg} ---")
-        full_context += f"\n\nYOUR PREVIOUS QUERIES FAILED WITH ERROR:\n{error_msg}\nPLEASE FIX IT."
-        
+            
     variants = llm_provider.generate_sql(question, full_context)
     print(f"[Generated {len(variants)} variants]")
     
     state["sql_variants"] = variants
-    state["error_message"] = None
     return state
 
 def validate_sql_node(state: AgentState) -> AgentState:
@@ -87,11 +78,38 @@ def validate_sql_node(state: AgentState) -> AgentState:
     if not valid_variants:
         combined_error = "All generated variants failed validation:\n" + "\n".join(errors)
         print(f"[Validation Failed] {combined_error}")
-        state["error_message"] = combined_error
+        
+        history = state.get("correction_history", [])
+        history.append({
+            "stage": "validation",
+            "error_message": combined_error,
+            "recoverable": True
+        })
+        state["correction_history"] = history
         state["retry_count"] = state.get("retry_count", 0) + 1
     else:
         print(f"[{len(valid_variants)} variants passed validation]")
         
+    return state
+
+def correct_sql_node(state: AgentState) -> AgentState:
+    print("--- CORRECTING SQL (Dedicated Recovery Node) ---")
+    history = state.get("correction_history", [])
+    if not history:
+        return state
+        
+    question = state["user_question"]
+    schema = state.get("schema_context", "")
+    
+    history_str = "\n\n".join([f"Attempt Failed at {h['stage']}:\nError: {h['error_message']}" for h in history])
+    
+    prompt = f"Fix the SQL for: '{question}'.\nSchema:\n{schema}\n\nPast errors you must avoid:\n{history_str}"
+    
+    # We ask the LLM to generate 3 new fixed variants based on the ENTIRE error history
+    variants = llm_provider.generate_sql(prompt, "You are a SQL expert fixing broken queries. Do NOT repeat past mistakes.")
+    print(f"[Generated {len(variants)} corrected variants]")
+    
+    state["sql_variants"] = variants
     return state
 
 def select_best_sql_node(state: AgentState) -> AgentState:
@@ -108,14 +126,31 @@ def select_best_sql_node(state: AgentState) -> AgentState:
 def execute_sql_node(state: AgentState) -> AgentState:
     print("--- EXECUTING SQL ---")
     sql = state["generated_sql"]
+    db = DatabaseExecutor()
     
     try:
-        results = db_executor.execute_query(sql)
+        results = db.execute_query(sql)
+        print(f"[Success] {len(results)} rows returned")
         state["execution_results"] = results
     except Exception as e:
-        error_msg = f"DATABASE RUNTIME ERROR: {str(e)}"
-        print(f"[Execution Failed] {error_msg}")
-        state["error_message"] = error_msg
+        error_msg = str(e)
+        print(f"[Execution Error] {error_msg}")
+        
+        # Error Classification: Identify unrecoverable infrastructure errors
+        unrecoverable_patterns = ["timeout", "readonly", "query_only", "locked"]
+        is_recoverable = not any(p in error_msg.lower() for p in unrecoverable_patterns)
+        
+        if not is_recoverable:
+            print(f"⚠️ [Error Class: Unrecoverable] Aborting retry loop.")
+            
+        history = state.get("correction_history", [])
+        history.append({
+            "stage": "execution",
+            "sql": sql,
+            "error_message": error_msg,
+            "recoverable": is_recoverable
+        })
+        state["correction_history"] = history
         state["retry_count"] = state.get("retry_count", 0) + 1
         
     return state

@@ -9,7 +9,7 @@ class AgentState(TypedDict):
     sql_variants: Optional[List[str]]
     valid_sql_variants: Optional[List[str]]
     generated_sql: Optional[str]
-    error_message: Optional[str]
+    correction_history: List[dict]
     retry_count: int
     execution_results: Optional[List[dict]]
     final_answer: Optional[str]

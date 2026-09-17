@@ -39,7 +39,7 @@ def main():
             "generated_sql": None,
             "is_mutation": False,
             "mutation_approved": False,
-            "error_message": None,
+            "correction_history": [],
             "retry_count": 0,
             "execution_results": None,
             "final_answer": None

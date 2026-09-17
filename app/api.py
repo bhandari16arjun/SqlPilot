@@ -51,7 +51,7 @@ def run_query(req: QueryRequest):
         "sql_variants": None,
         "valid_sql_variants": None,
         "generated_sql": None,
-        "error_message": None,
+        "correction_history": [],
         "retry_count": 0,
         "execution_results": None,
         "final_answer": None
