@@ -34,3 +34,22 @@ jobs:
         PYTHONPATH: .
       run: |
         pytest tests/
+
+  deploy:
+    name: Auto-Deploy to Render
+    needs: test # CRITICAL: Only deploy if the Pytest suite passes!
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Only deploy on pushes to main
+    
+    steps:
+    - name: Trigger Render Deployment
+      env:
+        # You must add this secret to your GitHub Repository Settings -> Secrets
+        RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+      run: |
+        if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+          echo "Warning: RENDER_DEPLOY_HOOK secret is not set. Skipping deployment."
+          exit 0
+        fi
+        echo "Triggering deployment to Render..."
+        curl -X GET "$RENDER_DEPLOY_HOOK"
