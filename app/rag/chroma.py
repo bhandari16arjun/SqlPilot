@@ -3,8 +3,10 @@ import sqlite3
 import chromadb
 from chromadb.utils import embedding_functions
 
-# Use a fast, free local embedding model that doesn't require API calls
-emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+# Use Gemini API for embeddings instead of local PyTorch models to save 800MB+ RAM and prevent OOM on Render
+emb_fn = embedding_functions.GoogleGenerativeAiEmbeddingFunction(
+    api_key=os.getenv("GEMINI_API_KEY", "missing_api_key_prevent_crash_on_boot")
+)
 
 class RAGController:
     def __init__(self, db_dir="data/chroma_db"):
