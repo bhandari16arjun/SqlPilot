@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from .state import AgentState
 from .nodes import (
+    rate_limit_guard_node,
     retrieve_context_node, 
     check_ambiguity_node, 
     clarify_node,
@@ -14,6 +15,11 @@ from .nodes import (
 )
 
 MAX_RETRIES = 2
+
+def route_rate_limit(state: AgentState):
+    if state.get("error_message") and "Rate limit" in state["error_message"]:
+        return "explain_results"
+    return "retrieve_context"
 
 def route_ambiguity(state: AgentState):
     if state.get("is_ambiguous"):
@@ -39,6 +45,7 @@ def route_after_execution(state: AgentState):
 def create_graph():
     workflow = StateGraph(AgentState)
 
+    workflow.add_node("rate_limit_guard", rate_limit_guard_node)
     workflow.add_node("retrieve_context", retrieve_context_node)
     workflow.add_node("check_ambiguity", check_ambiguity_node)
     workflow.add_node("clarify", clarify_node)
@@ -49,7 +56,17 @@ def create_graph():
     workflow.add_node("execute_sql", execute_sql_node)
     workflow.add_node("explain_results", explain_results_node)
 
-    workflow.set_entry_point("retrieve_context")
+    workflow.set_entry_point("rate_limit_guard")
+    
+    workflow.add_conditional_edges(
+        "rate_limit_guard",
+        route_rate_limit,
+        {
+            "explain_results": "explain_results",
+            "retrieve_context": "retrieve_context"
+        }
+    )
+    
     workflow.add_edge("retrieve_context", "check_ambiguity")
     
     # Ambiguity Check

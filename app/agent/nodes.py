@@ -3,10 +3,18 @@ from app.llm.gemini import GeminiProvider
 from app.db.sqlite import DatabaseExecutor
 from app.rag.chroma import RAGController
 from app.agent.validators import validate_sql
+from app.agent.memory import memory_manager
+from app.security.rate_limiter import rate_limiter
 
 llm_provider = GeminiProvider()
-db_executor = DatabaseExecutor()
 rag_controller = RAGController()
+
+def rate_limit_guard_node(state: AgentState) -> AgentState:
+    session_id = state.get("thread_id", "default")
+    if not rate_limiter.check(session_id):
+        print(f"⚠️ [RATE LIMIT EXCEEDED] Blocking request for session {session_id}")
+        state["error_message"] = "Rate limit exceeded. Please wait a moment before submitting another query."
+    return state
 
 def retrieve_context_node(state: AgentState) -> AgentState:
     question = state["user_question"]
