@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: sqlpilot_api
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount local directory for hot-reloading code changes
+      - .:/app
+      # Persist SQLite and ChromaDB across container restarts
+      - sqlpilot_data:/app/data
+      - sqlpilot_chroma:/app/chroma_db
+    env_file:
+      - .env
+    environment:
+      # Tell the API it's running in docker
+      - DOCKER_ENV=true
+
+  ui:
+    build: .
+    container_name: sqlpilot_ui
+    command: streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      # Point Streamlit to the internal Docker network name of the API service
+      - SQLPILOT_API_URL=http://api:8000
+    depends_on:
+      - api
+
+volumes:
+  sqlpilot_data:
+  sqlpilot_chroma:
