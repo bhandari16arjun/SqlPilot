@@ -4,7 +4,7 @@ services:
     name: sqlpilot-api
     env: docker
     dockerfilePath: ./Dockerfile
-    dockerCommand: "uvicorn app.api:app --host 0.0.0.0 --port $PORT"
+    dockerCommand: "sh -c 'python scripts/seed_database.py && python scripts/index_rag.py && uvicorn app.api:app --host 0.0.0.0 --port $PORT'"
     plan: free
     envVars:
       - key: GEMINI_API_KEY
