@@ -1,0 +1,29 @@
+services:
+  # 1. FastAPI Backend Service
+  - type: web
+    name: sqlpilot-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    # Override the docker command to run the API on Render's default port (10000)
+    dockerCommand: "uvicorn app.api:app --host 0.0.0.0 --port 10000"
+    plan: free
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # You will paste your API key in the Render dashboard
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+
+  # 2. Streamlit Frontend UI
+  - type: web
+    name: sqlpilot-ui
+    env: docker
+    dockerfilePath: ./Dockerfile
+    # Override the docker command to run the UI on Render's default port (10000)
+    dockerCommand: "streamlit run streamlit_app.py --server.port 10000 --server.address 0.0.0.0"
+    plan: free
+    envVars:
+      - key: SQLPILOT_API_URL
+        # This points the frontend UI to the deployed backend API
+        value: "https://sqlpilot-api.onrender.com"
