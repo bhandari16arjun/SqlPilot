@@ -88,22 +88,34 @@ if pending:
         
     free_text = st.chat_input("Type your answer here...")
     if free_text:
+        # 1. Append and render user message instantly
         st.session_state.messages.append({"role": "user", "content": free_text})
-        with st.spinner("Thinking..."):
-            result = _call_api(
-                "/resume",
-                {"thread_id": st.session_state.thread_id, "answer": free_text},
-            )
-        _handle_result(result)
-        st.rerun()
+        with st.chat_message("user"):
+            st.write(free_text)
+            
+        # 2. Fetch and render AI response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                result = _call_api(
+                    "/resume",
+                    {"thread_id": st.session_state.thread_id, "answer": free_text},
+                )
+            _handle_result(result)
+            st.rerun()
 else:
     question = st.chat_input("Ask a question about your data...")
     if question:
+        # 1. Append and render user message instantly
         st.session_state.messages.append({"role": "user", "content": question})
-        with st.spinner("Thinking..."):
-            result = _call_api(
-                "/query",
-                {"thread_id": st.session_state.thread_id, "question": question},
-            )
-        _handle_result(result)
-        st.rerun()
+        with st.chat_message("user"):
+            st.write(question)
+            
+        # 2. Fetch and render AI response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                result = _call_api(
+                    "/query",
+                    {"thread_id": st.session_state.thread_id, "question": question},
+                )
+            _handle_result(result)
+            st.rerun()
