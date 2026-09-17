@@ -15,3 +15,5 @@ python-dotenv>=1.0.0
 httpx>=0.25.0
 
 tenacity
+
+google-generativeai
