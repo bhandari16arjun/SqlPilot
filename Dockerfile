@@ -18,5 +18,9 @@ COPY . .
 # Create directories for persistent SQLite data and ChromaDB vectors
 RUN mkdir -p /app/data /app/chroma_db
 
-# We leave the command empty because docker-compose will override it 
-# to run either the FastAPI server or the Streamlit UI.
+# Expose the default port Render uses
+EXPOSE 10000
+
+# Set the default command to start the FastAPI server
+# This ensures Render has a valid command even if the dashboard field is empty
+CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "10000"]
