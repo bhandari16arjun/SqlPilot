@@ -1,151 +1,88 @@
-# SQLPilot 🚀
+# ?? SQLPilot (v2.0)
 
-SQLPilot is a production-grade **Agentic RAG pipeline** that translates natural language questions into highly accurate, secure, and optimized SQL queries. It is designed to act as an autonomous Data Analyst, answering complex business questions by querying databases directly.
+**An Enterprise-Grade, Agentic Text-to-SQL Microservice.**
 
-Built entirely in Python, SQLPilot uses a **LangGraph state machine** to orchestrate an advanced reasoning loop that includes Ambiguity Detection, AST Security Validation, Self-Consistency (Chain-of-Thought), and Human-in-the-Loop approvals.
+SQLPilot is a natural language database querying tool powered by an intelligent **LangGraph** AI agent. It translates plain English questions into optimized, highly-secure SQL, executes them against your database, and returns the answers in a clean **Streamlit** interface. 
 
----
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart TD
-    Client([User]) --> API[FastAPI / CLI]
-    API --> Agent[LangGraph Engine]
-    
-    subgraph Core ["Agent State Machine"]
-        Agent --> RAG[RAG Layer]
-        RAG --> Ambiguity{Is Ambiguous?}
-        
-        Ambiguity -- Yes --> Clarify[Clarification Node]
-        Ambiguity -- No --> Generate[Generate SQL Variants]
-        
-        Generate --> Validate[AST Validation]
-        Validate -- Syntax Error --> Generate
-        Validate -- Valid --> SelectBest[Judge Best Query]
-        
-        SelectBest --> Execute[Execute SQL]
-        Execute -- Runtime Error --> Generate
-        Execute -- Success --> Explain[Explain Results]
-    end
-    
-    Execute -.-> DB[(SQLite Sandbox)]
-    RAG -.-> VectorDB[(ChromaDB)]
-    
-    Clarify -.-> |Interrupt| API
-    Explain --> API
-```
-
-*(Note: You can place your custom architecture diagram screenshot at `docs/architecture.png`)*
+What makes SQLPilot different is its **Human-in-the-Loop** Clarification Engine. If your question is ambiguous (e.g., *"Who is the best customer?"*), SQLPilot refuses to guess. Instead, it pauses its state graph and asks you for clarification before touching the database.
 
 ---
 
-## 📊 Project Status
+## ? Key Features
 
-| Phase | Name | Status |
-|---|---|---|
-| 0 | Foundation | 🟢 Done |
-| 1 | Core Pipeline | 🟢 Done |
-| 2 | RAG Layer | 🟢 Done |
-| 3 | Clarification Engine | 🟢 Done |
-| 4 | AST Validation & Blocklist | 🟢 Done |
-| 5 | Self-Consistency (Majority Voting) | 🟢 Done |
-| 6 | Few-Shot Golden Examples | 🟢 Done |
-| 7 | Observability (Langfuse) | 🟢 Done |
-| 8 | Advanced Memory (User Rules) | 🟢 Done |
-| 9 | Production API (FastAPI) | 🟢 Done |
-| 10 | Security Sandbox (Read-Only Mode) | 🟢 Done |
-| 11 | Streamlit UI | 🟡 Pending (V2 Plan) |
-| 12 | Test & Eval Suite | 🟡 Pending (V2 Plan) |
+- **?? LangGraph State Machine:** A multi-node agentic workflow that loops, self-corrects, and handles complex reasoning chains.
+- **??? Ironclad Security (AST Validator):** A strict mathematical sqlglot Abstract Syntax Tree validator ensures absolutely zero DML/DDL (mutations, drops, deletes) can be executed.
+- **?? State-of-the-Art AI:** Powered by Google's cutting edge gemini-3.5-flash for SQL generation and gemini-embedding-2 for blazing-fast RAG vectorization.
+- **?? Rate Limiting:** A built-in sliding-window rate limiter protects your API limits from spam and bot attacks.
+- **?? Cloud-Native & Containerized:** Fully orchestrated with Docker, optimized for Render.com's ephemeral free tier, and protected by CI/CD GitHub Actions.
+- **?? Clean Chat Interface:** A bespoke Streamlit frontend tailored to handle long-running, interruptible LangGraph sessions asynchronously.
 
 ---
 
-## 🛠️ Tech Stack
+## ??? Architecture
 
-* **Frameworks:** Python, LangGraph, LangChain, FastAPI, Uvicorn
-* **AI & LLM:** Google Gemini 3.5 Flash
-* **Retrieval (RAG):** ChromaDB, HuggingFace (`all-MiniLM-L6-v2`)
-* **Security:** SQLGlot (AST parsing), SQLite Read-Only Sandbox
-* **Observability:** Langfuse
+1. **Frontend (sqlpilot-ui):** A Streamlit app that manages conversation history and handles LangGraph interrupts.
+2. **Backend API (sqlpilot-api):** A robust FastAPI server that hosts the LangGraph AI Engine.
+3. **RAG Engine (chroma_db):** Vectorizes your database schema and business rules using a custom LangChain Gemini Wrapper to eliminate memory bloat and OOM crashes.
+4. **Execution Sandbox (SQLite):** An isolated database connection with a strict 5-second timeout and 100-row etchmany() cap to prevent DoS loops.
 
 ---
 
-## 🚀 Getting Started
+## ?? Live Demo
 
-### 1. Installation
+**Check out the live deployment here:**  
+?? **[https://sqlpilot-z317.onrender.com](https://sqlpilot-z317.onrender.com)** *(Streamlit UI)*
 
-Clone the repository and install the dependencies in a virtual environment:
+*(Note: The backend API runs securely at https://sqlpilot-657o.onrender.com. Because it is an API, hitting it in a browser returns a 405 Method Not Allowed. Always interact via the Streamlit UI!)*
 
-```bash
+---
+
+## ?? Local Development
+
+### 1. Prerequisites
+- Python 3.11+
+- A Google Gemini API Key
+
+### 2. Setup
+\\ash
+git clone https://github.com/YOUR-USERNAME/SqlPilot.git
+cd SqlPilot
 python -m venv venv
-# Windows:
-.\venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
-
+source venv/bin/activate  # (On Windows: .env\Scriptsctivate)
 pip install -r requirements.txt
-```
-
-### 2. Environment Variables
-
-Create a `.env` file in the root directory and add your API keys:
-
-```env
-# Google Gemini API
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Langfuse Telemetry (Optional)
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
-LANGFUSE_HOST=https://cloud.langfuse.com
-```
-
-### 3. Initialize the Database & RAG Index
-
-Seed the dummy SQLite database and build the local ChromaDB vector index:
-
-```bash
-python scripts/seed_database.py
-python scripts/index_rag.py
-```
-
-### 4. Run the Application
-
-You can interact with SQLPilot either through the interactive terminal CLI or by starting the FastAPI production server.
-
-**Option A: Interactive CLI**
-```bash
-python -m app.cli
-```
-*Tip: Try typing `/remember Always format dates as YYYY-MM-DD` in the CLI to test the persistent memory engine!*
-
-**Option B: FastAPI Server**
-```bash
-python -m uvicorn app.api:app --reload
-```
-Open your browser and navigate to **http://localhost:8000/docs** to interact with the Swagger UI.
+\
+### 3. Environment Variables
+Create a .env file in the root directory:
+\\env
+GEMINI_API_KEY=your_google_ai_studio_api_key_here
+SQLPILOT_API_URL=http://localhost:10000
+\
+### 4. Run the Stack (Docker Compose)
+The easiest way to boot the entire microservice architecture locally is via Docker:
+\\ash
+docker-compose up --build
+\- **Streamlit UI:** http://localhost:8501
+- **FastAPI Docs:** http://localhost:10000/docs
 
 ---
 
-## 🛡️ Security
+## ?? Testing
 
-This project employs a strict defense-in-depth approach to database access:
-1. **AST Blocklist**: `SQLGlot` parses generated queries into an Abstract Syntax Tree (AST) and rigorously rejects `UPDATE`, `INSERT`, `DELETE`, `DROP`, and `ALTER`.
-2. **Database Sandbox**: The `DatabaseExecutor` explicitly sets `PRAGMA query_only = ON;` before executing any statement, ensuring the underlying database engine cannot mutate data even if an exploit bypasses the Python layer.
+We built a strict Pytest suite to mathematically guarantee the security boundaries hold firm. 
+
+\\ash
+pytest tests/
+\**Tests Include:**
+- 	est_validation.py: Proves the AST Validator blocks DROP, DELETE, INSERT, UPDATE, and malicious PRAGMA queries.
+- 	est_rate_limiter.py: Proves the sliding window algorithm correctly throttles request bursts.
 
 ---
 
-## 📁 Project Structure
+## ?? Deploying to Render
 
-```
-app/
-  agent/          LangGraph state machine (nodes, edges, prompt logic)
-  db/             SQLite connector (read-only execution)
-  llm/            LLM client wrapper (Gemini + LangChain)
-  rag/            ChromaDB retriever
-  cli.py          Interactive CLI entry point
-  api.py          FastAPI production server
-scripts/          Database seeding and RAG indexing scripts
-data/             SQLite database file and persistent JSON memory
-README.md         Project overview and architecture
-```
+This repository is optimized for deployment on Render's Free Tier.
+
+1. **Deploy the Backend:** Create a New Web Service (name it sqlpilot-api), leave the Docker command empty, and add your GEMINI_API_KEY to the Environment Variables.
+2. **Deploy the Frontend:** Create another New Web Service (name it sqlpilot-ui), set the Docker Command to streamlit run streamlit_app.py --server.port 10000 --server.address 0.0.0.0, and add the SQLPILOT_API_URL pointing to the backend.
+
+Every time you git push to main, Render will automatically pull the new code and redeploy both servers!
