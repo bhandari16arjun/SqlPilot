@@ -69,7 +69,7 @@ graph TD
 | Layer | Technology | Role |
 |---|---|---|
 | **Orchestrator** | LangGraph | Deterministic state machine with two retry loops and a clarification exit |
-| **LLM** | Gemini 3.5 Flash | Fast, intelligent SQL generation and ambiguity detection |
+| **LLM** | Groq (Qwen 3.8-27b) | Fast, intelligent SQL generation and ambiguity detection |
 | **Context engine (RAG)** | ChromaDB + LangChain | Retrieves schema chunks using a custom Gemini Embeddings wrapper |
 | **Validation** | SQLGlot | Offline parse + AST mutation scan, dialect-aware |
 | **Database sandbox** | SQLite | Read-only connection, 5s timeout, 100-row `fetchmany()` cap |
@@ -79,7 +79,7 @@ graph TD
 
 ---
 
-## 🔄 How a Request Flows Through the System
+## 🚦 How a Request Flows Through the System
 
 1. **User asks a question** in the Streamlit UI.
 2. Streamlit hits the FastAPI `/query` endpoint.
@@ -92,7 +92,7 @@ graph TD
 
 ---
 
-## 🛡️ Validation & Self-Correction
+## 🛠️ Validation & Self-Correction
 
 SQLPilot features a **Dedicated Recovery Node**. If an Execution Error occurs (e.g. `SQLite error: no such table: customers`), the LangGraph state machine catches the error, records it in the `correction_history` state array, and routes it to the `correct_sql` node. 
 
@@ -109,22 +109,22 @@ We take security seriously. SQLPilot deploys a defense-in-depth approach:
 
 ---
 
-## 🌐 Live Demo & Deployment
+## 🚀 Live Demo & Deployment
 
 **Check out the live deployment here:**  
 🔗 **[https://sqlpilot-z317.onrender.com](https://sqlpilot-z317.onrender.com)** *(Streamlit UI)*
 
 ### Deploying to Render
 This repository is heavily optimized for Render's Free Tier.
-1. **Backend (`sqlpilot-api`):** Deploy a new Web Service using the Dockerfile default command. Set `GEMINI_API_KEY`.
-2. **Frontend (`sqlpilot-ui`):** Deploy another Web Service using Docker command: `streamlit run streamlit_app.py --server.port 10000 --server.address 0.0.0.0`. Set `SQLPILOT_API_URL` to point to your backend.
+1. **Backend (`sqlpilot-api`):** Deploy a new Web Service using the `render.yaml` configuration. Set `GROQ_API_KEY` and `GEMINI_API_KEY` in the environment settings.
+2. **Frontend (`sqlpilot-ui`):** Deploy another Web Service for the Streamlit UI. Set `SQLPILOT_API_URL` to point to your backend.
 
 ---
 
 ## 💻 Local Development
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/SqlPilot.git
+git clone https://github.com/bhandari16arjun/SqlPilot.git
 cd SqlPilot
 python -m venv venv
 source venv/bin/activate  # (On Windows: .\venv\Scripts\activate)
@@ -133,13 +133,19 @@ pip install -r requirements.txt
 
 Create a `.env` file:
 ```env
+GROQ_API_KEY=your_groq_api_key_here
 GEMINI_API_KEY=your_google_ai_studio_api_key_here
 SQLPILOT_API_URL=http://localhost:10000
+DATABASE_URL=sqlite:///data/demo.db
 ```
 
-Boot the entire microservice architecture locally:
+Seed the database and run the backend locally:
 ```bash
-docker-compose up --build
+python scripts/seed_database.py
+uvicorn app.api:app --host 0.0.0.0 --port 10000
 ```
-- **Streamlit UI:** `http://localhost:8501`
-- **FastAPI Docs:** `http://localhost:10000/docs`
+
+In a new terminal window, start the Streamlit UI:
+```bash
+streamlit run streamlit_app.py --server.port 8501
+```
