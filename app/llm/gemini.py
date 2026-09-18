@@ -106,13 +106,15 @@ Please provide a short answer to the original question based on these results.
 
     def detect_ambiguity(self, question: str, schema: str, history: list) -> dict:
         system_prompt = f"""You are a strict data analyst. Check if the user's question is ambiguous given the schema.
-RULES:
-- Only flag as ambiguous if you genuinely cannot determine which table/column to use.
-- If the schema clearly contains the answer, set is_ambiguous to false and let SQL generation proceed.
-- Do NOT ask for clarification on things that are clearly inferrable from column names.
-- You must return a JSON object with:
+
+MANDATORY RULES:
+- If the question asks about a PERSON BY NAME (e.g. "Who is Jack Smith?", "Tell me about Alice") AND the schema has MORE THAN ONE table with a "name" column, you MUST set is_ambiguous to true and ask which table they mean.
+- If the schema has tables like both "customers" and "employees" that both have a "name" column, any question about a specific person is ALWAYS ambiguous.
+- Only set is_ambiguous to false if the question clearly refers to a single, unambiguous table.
+
+You must return a JSON object with:
   "is_ambiguous": boolean
-  "ambiguity_type": string (e.g. "Schema Ambiguity", "Clear")
+  "ambiguity_type": string (e.g. "Multiple tables match person name", "Clear")
   "clarification_question": string (A clear question for the user, or empty string if clear)
 
 Schema:
