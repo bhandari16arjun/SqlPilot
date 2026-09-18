@@ -160,9 +160,8 @@ def correct_sql_node(state: AgentState) -> AgentState:
 
     history_str = "\n\n".join([f"Attempt Failed at {h['stage']}:\nError: {h['error_message']}" for h in history])
 
-    prompt = f"Fix the SQLite SQL for: '{question}'.\nSchema:\n{schema}\n\nPast errors you must avoid:\n{history_str}"
-
-    variants = llm_provider.generate_sql(prompt, "You are a SQLite expert fixing broken queries. Do NOT repeat past mistakes. Only use SQLite syntax.")
+    prompt = f"Fix this SQLite SQL query. Original question: '{question}'.\nErrors to avoid:\n{history_str}"
+    variants = llm_provider.generate_sql(prompt, schema)
     print(f"[Generated {len(variants)} corrected variants]")
 
     state["sql_variants"] = variants

@@ -44,6 +44,7 @@ def run_query(req: QueryRequest):
     
     initial_state = {
         "user_question": req.question,
+        "thread_id": thread_id,
         "schema_context": "",
         "is_ambiguous": False,
         "clarification_question": "",
@@ -54,7 +55,8 @@ def run_query(req: QueryRequest):
         "correction_history": [],
         "retry_count": 0,
         "execution_results": None,
-        "final_answer": None
+        "final_answer": None,
+        "error_message": None
     }
     
     # Run the state machine

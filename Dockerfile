@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code (data/demo.db is now included via .dockerignore fix)
 COPY . .
 
+# Fix Windows CRLF line endings in start.sh and make it executable
+RUN sed -i 's/\r//' start.sh && chmod +x start.sh
+
 # Create directory for ChromaDB vectors (generated at runtime)
 RUN mkdir -p /app/data
 

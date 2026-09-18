@@ -11,7 +11,7 @@ class GeminiProvider(LLMProvider):
         api_key = os.getenv("GROQ_API_KEY") or "missing_key"
 
         self.llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
             groq_api_key=api_key
         )
 
