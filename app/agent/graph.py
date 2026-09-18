@@ -28,9 +28,13 @@ def route_ambiguity(state: AgentState):
 
 def route_after_validation(state: AgentState):
     if not state.get("valid_sql_variants"):
+        history = state.get("correction_history", [])
+        # If the last error was unrecoverable (e.g. UNSAFE query), stop immediately
+        if history and not history[-1].get("recoverable", True):
+            return "explain_results"
         if state.get("retry_count", 0) >= MAX_RETRIES:
-            return "explain_results" # Give up
-        return "correct_sql" # Route to explicit correction node
+            return "explain_results"
+        return "correct_sql"
     return "select_best_sql"
 
 def route_after_execution(state: AgentState):

@@ -128,14 +128,21 @@ def validate_sql_node(state: AgentState) -> AgentState:
         combined_error = "All generated variants failed validation:\n" + "\n".join(errors)
         print(f"[Validation Failed] {combined_error}")
 
+        # UNSAFE queries (DELETE, DROP, INSERT etc.) are unrecoverable — stop immediately
+        is_unsafe = any("UNSAFE" in e for e in errors)
+
         history = state.get("correction_history", [])
         history.append({
             "stage": "validation",
             "error_message": combined_error,
-            "recoverable": True
+            "recoverable": not is_unsafe
         })
         state["correction_history"] = history
         state["retry_count"] = state.get("retry_count", 0) + 1
+
+        if is_unsafe:
+            # Short-circuit: set final_answer directly so explain_results just returns it
+            state["final_answer"] = "⛔ Query blocked: Only SELECT statements are permitted. Mutations (DELETE, DROP, INSERT, UPDATE) are not allowed."
     else:
         print(f"[{len(valid_variants)} variants passed validation]")
 

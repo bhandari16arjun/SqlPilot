@@ -12,7 +12,6 @@ class GeminiProvider(LLMProvider):
         
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-3.6-flash",
-            temperature=0,
             google_api_key=api_key
         )
 
