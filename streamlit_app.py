@@ -88,6 +88,9 @@ if pending:
         
     free_text = st.chat_input("Type your answer here...")
     if free_text:
+        # Persist the AI's question to the chat history so it doesn't disappear
+        st.session_state.messages.append({"role": "assistant", "content": pending.get("message", "Can you clarify?")})
+        
         # 1. Append and render user message instantly
         st.session_state.messages.append({"role": "user", "content": free_text})
         with st.chat_message("user"):

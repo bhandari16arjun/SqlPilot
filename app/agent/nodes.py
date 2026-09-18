@@ -91,7 +91,11 @@ def clarify_node(state: AgentState) -> AgentState:
 
 def generate_sql_node(state: AgentState) -> AgentState:
     print("--- GENERATING SQL ---")
-    question = state.get("clarification_question") or state["user_question"]
+    question = state["user_question"]
+    history = state.get("conversation_history", [])
+    if history:
+        question += "\n\nClarification Context:\n" + "\n".join(history)
+        
     schema = state.get("schema_context", "")
 
     prefs = PreferenceManager().get_rules()
