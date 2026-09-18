@@ -35,71 +35,73 @@ class RAGController:
         )
 
     def index_schema(self, sqlite_db_path="data/demo.db"):
-        print("Indexing database schema...")
+        print("Indexing database schema (Batched)...")
         db_url = os.getenv("DATABASE_URL")
+        docs, metas, ids = [], [], []
         
         if db_url and db_url.startswith("postgres"):
             engine = create_engine(db_url)
             inspector = inspect(engine)
             tables = inspector.get_table_names()
-            
             for table_name in tables:
                 columns = inspector.get_columns(table_name)
                 col_strings = [f"{col['name']} ({col['type']})" for col in columns]
-                doc = f"Table: {table_name}\nColumns: {', '.join(col_strings)}"
-                self.schema_collection.upsert(
-                    documents=[doc], metadatas=[{"table": table_name, "type": "schema"}], ids=[f"schema_{table_name}"]
-                )
-            print(f"Successfully indexed {len(tables)} tables from PostgreSQL.")
+                docs.append(f"Table: {table_name}\nColumns: {', '.join(col_strings)}")
+                metas.append({"table": table_name, "type": "schema"})
+                ids.append(f"schema_{table_name}")
+            print(f"Successfully fetched {len(tables)} tables from PostgreSQL.")
         else:
             conn = sqlite3.connect(sqlite_db_path)
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             tables = cursor.fetchall()
-            
             for (table_name,) in tables:
                 cursor.execute(f"PRAGMA table_info({table_name})")
                 columns = cursor.fetchall()
                 col_strings = [f"{col[1]} ({col[2]})" for col in columns]
-                doc = f"Table: {table_name}\nColumns: {', '.join(col_strings)}"
-                self.schema_collection.upsert(
-                    documents=[doc], metadatas=[{"table": table_name, "type": "schema"}], ids=[f"schema_{table_name}"]
-                )
+                docs.append(f"Table: {table_name}\nColumns: {', '.join(col_strings)}")
+                metas.append({"table": table_name, "type": "schema"})
+                ids.append(f"schema_{table_name}")
             conn.close()
-            print(f"Successfully indexed {len(tables)} tables from SQLite.")
+            print(f"Successfully fetched {len(tables)} tables from SQLite.")
+            
+        if docs:
+            self.schema_collection.upsert(documents=docs, metadatas=metas, ids=ids)
 
     def index_knowledge_base(self, kb_dir="knowledge_base"):
-        print("Indexing business rules...")
-        count = 0
+        print("Indexing business rules (Batched)...")
+        docs, metas, ids = [], [], []
         if not os.path.exists(kb_dir): return
         for filename in os.listdir(kb_dir):
             if filename.endswith(".md"):
                 filepath = os.path.join(kb_dir, filename)
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                    docs.append(f.read())
                 rule_id = filename.replace(".md", "")
-                self.kb_collection.upsert(
-                    documents=[content], metadatas=[{"rule": rule_id, "type": "business_rule"}], ids=[f"kb_{rule_id}"]
-                )
-                count += 1
-        print(f"Successfully indexed {count} business rules.")
+                metas.append({"rule": rule_id, "type": "business_rule"})
+                ids.append(f"kb_{rule_id}")
+                
+        if docs:
+            self.kb_collection.upsert(documents=docs, metadatas=metas, ids=ids)
+        print(f"Successfully indexed {len(docs)} business rules.")
 
     def index_examples(self, examples_path="data/examples.json"):
         import json
-        print("Indexing golden examples...")
+        print("Indexing golden examples (Batched)...")
+        docs, metas, ids = [], [], []
         if not os.path.exists(examples_path): return
             
         with open(examples_path, 'r', encoding='utf-8') as f:
             examples = json.load(f)
             
-        count = 0
         for i, ex in enumerate(examples):
-            doc = f"Question: {ex['question']}\nSQL: {ex['sql']}"
-            self.example_collection.upsert(
-                documents=[doc], metadatas=[{"type": "example"}], ids=[f"example_{i}"]
-            )
-            count += 1
-        print(f"Successfully indexed {count} examples.")
+            docs.append(f"Question: {ex['question']}\nSQL: {ex['sql']}")
+            metas.append({"type": "example"})
+            ids.append(f"example_{i}")
+            
+        if docs:
+            self.example_collection.upsert(documents=docs, metadatas=metas, ids=ids)
+        print(f"Successfully indexed {len(docs)} examples.")
 
     def retrieve_context(self, question: str, n_schema=4, n_kb=2, n_examples=2) -> str:
         schema_results = self.schema_collection.query(query_texts=[question], n_results=n_schema)
