@@ -11,7 +11,7 @@ class GeminiProvider(LLMProvider):
         api_key = os.getenv("GEMINI_API_KEY") or "missing_key"
         
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-3.5-flash",
+            model="gemini-2.0-flash",
             temperature=0,
             google_api_key=api_key
         )
@@ -32,13 +32,17 @@ class GeminiProvider(LLMProvider):
         return str(content)
 
     def generate_sql(self, question: str, schema: str) -> list:
-        system_prompt = f"""You are an expert SQL data analyst.
-Your goal is to generate 3 different ways to write a PostgreSQL/SQLite compatible SQL query for the user's question.
-This helps us ensure we find the most optimized and accurate query.
-You must return your response as a valid JSON object with a key "queries" that contains a list of exactly 3 SQL strings.
-Do not return any markdown wrapping the JSON, just the raw JSON string.
+        system_prompt = f"""You are an expert SQLite data analyst.
+Your goal is to generate 3 different ways to write a valid SQLite SQL query for the user's question.
+CRITICAL RULES:
+- You MUST use ONLY standard SQLite syntax.
+- NEVER use information_schema, pg_catalog, or any PostgreSQL-only syntax.
+- NEVER hallucinate table or column names. ONLY use tables and columns that exist in the schema below.
+- Use strftime('%Y', date_column) to filter by year in SQLite, NOT EXTRACT().
+- Return your response as a valid JSON object with key "queries" containing exactly 3 SQL strings.
+- Do NOT wrap the JSON in markdown. Return raw JSON only.
 
-Here is the database schema and context:
+Database schema:
 {schema}
 """
         messages = [
@@ -50,10 +54,11 @@ Here is the database schema and context:
         
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
+        elif content.startswith("```"):
+            content = content.replace("```", "").strip()
             
         try:
             data = json.loads(content)
-            # If the LLM didn't return a list, try to force it
             queries = data.get("queries", [])
             if not queries and "sql" in data:
                 queries = [data["sql"]]
@@ -67,7 +72,7 @@ Here is the database schema and context:
         if len(variants) == 1:
             return variants[0]
             
-        system_prompt = "You are a senior database administrator. Choose the most accurate and optimized SQL query from the list provided."
+        system_prompt = "You are a senior SQLite database administrator. Choose the most accurate and optimized SQLite SQL query from the list provided."
         user_message = f"""
 Question: {question}
 
@@ -102,16 +107,19 @@ Please provide a short answer to the original question based on these results.
 
     def detect_ambiguity(self, question: str, schema: str, history: list) -> dict:
         system_prompt = f"""You are a strict data analyst. Check if the user's question is ambiguous given the schema.
-An ambiguous question is one where you aren't 100% sure which table/column to use, or what a term means.
-You must return a JSON object with:
-"is_ambiguous": boolean
-"ambiguity_type": string (e.g. "Missing Time Bound", "Schema Ambiguity", "Clear")
-"clarification_question": string (A multiple choice question for the user to clarify, or empty if clear)
+RULES:
+- Only flag as ambiguous if you genuinely cannot determine which table/column to use.
+- If the schema clearly contains the answer, set is_ambiguous to false and let SQL generation proceed.
+- Do NOT ask for clarification on things that are clearly inferrable from column names.
+- You must return a JSON object with:
+  "is_ambiguous": boolean
+  "ambiguity_type": string (e.g. "Schema Ambiguity", "Clear")
+  "clarification_question": string (A clear question for the user, or empty string if clear)
 
-Schema & Rules:
+Schema:
 {schema}
 
-History of clarifications:
+History of clarifications already provided:
 {history}
 """
         messages = [
@@ -123,6 +131,8 @@ History of clarifications:
         
         if content.startswith("```json"):
             content = content.replace("```json", "").replace("```", "").strip()
+        elif content.startswith("```"):
+            content = content.replace("```", "").strip()
             
         try:
             return json.loads(content)

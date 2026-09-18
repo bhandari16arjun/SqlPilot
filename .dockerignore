@@ -12,5 +12,5 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
-data/
-chroma_db/
+data/chroma_db/
+data/preferences.json

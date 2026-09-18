@@ -12,15 +12,17 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy application code (data/demo.db is now included via .dockerignore fix)
 COPY . .
 
-# Create directories for persistent SQLite data and ChromaDB vectors
-RUN mkdir -p /app/data /app/chroma_db
+# Create directory for ChromaDB vectors (generated at runtime)
+RUN mkdir -p /app/data
 
 # Expose the default port Render uses
 EXPOSE 10000
 
-# Set the default command to start the FastAPI server
-# This ensures Render has a valid command even if the dashboard field is empty
+# Seed the database at build time so it's baked into the image
+RUN python scripts/seed_database.py
+
+# Default command - render.yaml overrides this with the full startup sequence
 CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "10000"]
