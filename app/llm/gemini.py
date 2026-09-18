@@ -7,11 +7,11 @@ from .base import LLMProvider
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
-        # Groq: free tier gives 14,400 requests/day (vs 20 with Gemini free tier)
-        api_key = os.getenv("GROQ_API_KEY") or "missing_key"
+        # Support both GROQ_API_KEY (Render) and GROK_API_KEY (local .env typo)
+        api_key = os.getenv("GROQ_API_KEY") or os.getenv("GROK_API_KEY") or "missing_key"
 
         self.llm = ChatGroq(
-            model="llama-3.1-8b-instant",
+            model="qwen/qwen3.8-27b",
             groq_api_key=api_key
         )
 
