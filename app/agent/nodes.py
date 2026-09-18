@@ -214,9 +214,21 @@ def execute_sql_node(state: AgentState) -> AgentState:
 
 
 def explain_results_node(state: AgentState) -> AgentState:
+    # Case 1: UNSAFE query short-circuit — final_answer already set by validate_sql_node
+    if state.get("final_answer"):
+        return state
+
+    # Case 2: Rate limit or other error_message
     if state.get("error_message"):
         print("--- GIVING UP (Max Retries Reached) ---")
         state["final_answer"] = f"I failed to generate a working SQL query after multiple attempts. Last error: {state['error_message']}"
+        return state
+
+    # Case 3: SQL generated but execution failed and we gave up
+    if not state.get("generated_sql") or state.get("execution_results") is None:
+        history = state.get("correction_history", [])
+        last_error = history[-1]["error_message"] if history else "Unknown error"
+        state["final_answer"] = f"I was unable to execute a valid query. Last error: {last_error}"
         return state
 
     print("--- EXPLAINING RESULTS ---")

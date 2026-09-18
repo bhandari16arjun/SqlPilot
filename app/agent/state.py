@@ -13,3 +13,5 @@ class AgentState(TypedDict):
     retry_count: int
     execution_results: Optional[List[dict]]
     final_answer: Optional[str]
+    error_message: Optional[str]
+    thread_id: Optional[str]
