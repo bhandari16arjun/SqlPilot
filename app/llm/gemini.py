@@ -1,18 +1,18 @@
 import os
 import json
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from .base import LLMProvider
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
-        # Fallback to dummy key to prevent crash on boot if environment variable is missing
-        api_key = os.getenv("GEMINI_API_KEY") or "missing_key"
-        
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-3.6-flash",
-            google_api_key=api_key
+        # Groq: free tier gives 14,400 requests/day (vs 20 with Gemini free tier)
+        api_key = os.getenv("GROQ_API_KEY") or "missing_key"
+
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            groq_api_key=api_key
         )
 
     @retry(
