@@ -11,7 +11,7 @@ class GeminiProvider(LLMProvider):
         api_key = os.getenv("GEMINI_API_KEY") or "missing_key"
         
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             temperature=0,
             google_api_key=api_key
         )
